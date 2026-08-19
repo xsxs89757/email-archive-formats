@@ -1,6 +1,6 @@
-# Email archive formats: field notes on PST, OST, OLM, MBOX and EML
+# Email archive formats: field notes on PST, OST, OLM, MBOX, EML and MSG
 
-Notes collected while implementing a parser for each of these five formats (for [Mailward](https://pst.aivismonitor.com), a browser-based archive viewer — disclosure: I build it). Most of what is written about these formats online is converter marketing; this file is the technical part, including the parts that are inconvenient.
+Notes collected while implementing a parser for each of these six formats (for [Mailward](https://pst.aivismonitor.com), a browser-based archive viewer — disclosure: I build it). Most of what is written about these formats online is converter marketing; this file is the technical part, including the parts that are inconvenient.
 
 Corrections welcome — open an issue.
 
@@ -13,6 +13,7 @@ Corrections welcome — open an issue.
 | OLM | ZIP of per-message XML | Outlook for Mac (File → Export) | Yes — unzip and parse the XML |
 | MBOX | Plain text, one folder of mail, messages split on `From ` lines | Thunderbird, Apple Mail, Google Takeout | Yes, trivially |
 | EML | One RFC 5322 message with MIME body | Nearly every client | Yes, it *is* the standard |
+| MSG | CFBF/OLE2 compound file of typed MAPI properties | Outlook for Windows (drag out / Save As) | Yes, with a CFBF parser |
 
 ## PST: a database, not a mail folder
 
@@ -47,8 +48,17 @@ The least-documented format of the five, so in the most detail:
 
 - A single message: RFC 5322 headers plus a MIME body. It is the interchange format — every conversion out of the proprietary containers above ultimately produces this or MBOX.
 - When investigating one: `Received` headers are prepended by each hop, so read them **bottom-up** to follow a message's actual path.
+- A faithful export *into* EML must re-embed attachments as MIME parts (base64), not drop them beside the file — a surprising number of converters get this wrong, and the malformed variant (headers declaring `multipart/mixed` over a bare text body) parses in nothing.
 
-## Appendix: parsing multi-gigabyte archives in a browser
+## MSG: one message in a CFBF container
+
+- A `.msg` is one Outlook item saved as a file — drag a message out of Outlook and this is what you get. It is **not text**: it is a CFBF/OLE2 compound file (the old Office container), a miniature filesystem of storages and streams with one typed MAPI property per stream (`__substg1.0_0037001F` is the subject, and so on). Recipients and attachments are sub-storages.
+- **The sender-address trap:** in corporate mail the stored sender (`PR_SENDER_EMAIL_ADDRESS`) is frequently an Exchange X.500 distinguished name — `/O=ORG/OU=EXCHANGE ADMINISTRATIVE GROUP(...)/CN=...` — not an SMTP address. The usable address lives in a separate property (`PR_SENDER_SMTP_ADDRESS`, tag 0x5D01). Tools that display the raw sender field show gibberish for exactly the messages people most need to identify.
+- **Headers are conditional:** `PR_TRANSPORT_MESSAGE_HEADERS` exists only on messages that arrived from outside. A `.msg` saved from a sent folder never had an internet header block — absence is a fact about the message, not a parsing failure.
+- **ANSI variants mojibake by default:** older files store strings in a Windows codepage (PT_STRING8) with no marker on the strings themselves; the codepage has to be inferred from the message's own codepage/locale properties (`PidTagMessageCodepage`, `PidTagMessageLocaleId`) and applied in a second decode pass. Skip that and a Japanese subject renders as `ú{ê ^Cg`.
+- S/MIME-signed messages store their real content inside a `smime.p7m` wrapper; without the cryptographic layer you can see the wrapper, not the message.
+
+## Appendix: parsing archives in a browser
 
 Notes from making the PST parser work on multi-GB files inside a Web Worker, on top of [pst-extractor](https://github.com/epfromer/pst-extractor):
 
@@ -56,12 +66,18 @@ Notes from making the PST parser work on multi-GB files inside a Web Worker, on 
 - We back it with a paged reader: 64 KB pages, LRU-capped at 64 MB, loaded on demand via `File.slice()` + `FileReaderSync`. A 4 KB slice read measures ~200 µs in Chrome — fast enough that B-tree walks feel instant, and the file is never loaded whole.
 - In Node the same problem has a one-line fix: construct `PSTFile` with the *filename*, not a Buffer from `fs.readFileSync` — the descriptor-backed path has no 2 GB Buffer ceiling.
 
+And from doing the same for `.msg` (CFBF) in a Web Worker, on top of [@kenjiuno/msgreader](https://github.com/HiraokaHyperTools/msgreader):
+
+- The constructor takes an `ArrayBuffer` or `DataView`, **not** a `Uint8Array` — slice the view's exact byte range first or the offsets are silently wrong.
+- Its `iconv-lite` dependency drags in Node's `buffer` and `string_decoder`; in a browser bundle both must be polyfilled (webpack `resolve.fallback` + `ProvidePlugin`) or the worker dies at runtime while the build stays green.
+- Body extraction needs a fallback chain: `bodyHtml` (string) → `html` (bytes, new-Outlook) → plain `body`. Classic Outlook often writes only `compressedRtf` (RTF-encapsulated HTML), which needs a separate decompression step if you want it.
+
 ## Further reading
 
 Longer write-ups of everything above, kept current:
 
 - [Email archive formats, explained](https://pst.aivismonitor.com/email-archive-formats) — the full reference this file condenses
-- [Open a PST file without Outlook](https://pst.aivismonitor.com/) · [Open an OST file](https://pst.aivismonitor.com/open-ost-file-online) · [Open an OLM file](https://pst.aivismonitor.com/open-olm-file-online)
+- [Open a PST file without Outlook](https://pst.aivismonitor.com/) · [Open an OST file](https://pst.aivismonitor.com/open-ost-file-online) · [Open an OLM file](https://pst.aivismonitor.com/open-olm-file-online) · [Open a MSG file](https://pst.aivismonitor.com/open-msg-file-online)
 - [MS-PST specification](https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-pst/141923d5-15ab-4ef1-a524-6dce75aae546) (Microsoft)
 
 ---
