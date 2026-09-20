@@ -88,7 +88,21 @@ Numbers from walking the public PST/OST test files with pst-extractor 1.12.0 —
 Longer write-ups of everything above, kept current:
 
 - [Email archive formats, explained](https://pst.aivismonitor.com/email-archive-formats) — the full reference this file condenses
-- [Open a PST file without Outlook](https://pst.aivismonitor.com/) · [Open an OST file](https://pst.aivismonitor.com/open-ost-file-online) · [Open an OLM file](https://pst.aivismonitor.com/open-olm-file-online) · [Open a MSG file](https://pst.aivismonitor.com/open-msg-file-online)
+- Per format, with the reader that implements the notes above:
+  [PST](https://pst.aivismonitor.com/) ·
+  [OST](https://pst.aivismonitor.com/open-ost-file-online) ·
+  [OLM](https://pst.aivismonitor.com/open-olm-file-online) ·
+  [MBOX, including Google Takeout exports](https://pst.aivismonitor.com/open-mbox-file-online) ·
+  [EML](https://pst.aivismonitor.com/open-eml-file-online) ·
+  [MSG](https://pst.aivismonitor.com/open-msg-file-online)
+- Conversion, and what each direction loses:
+  [PST to MBOX](https://pst.aivismonitor.com/convert-pst-to-mbox) ·
+  [PST to EML](https://pst.aivismonitor.com/convert-pst-to-eml) ·
+  [OST to MBOX](https://pst.aivismonitor.com/convert-ost-to-mbox) ·
+  [OLM to MBOX](https://pst.aivismonitor.com/convert-olm-to-mbox)
+- How a browser reader compares with the two tools most people reach for first:
+  [readpst (libpst)](https://pst.aivismonitor.com/readpst-alternative) ·
+  [XstReader](https://pst.aivismonitor.com/xstreader-alternative)
 - [MS-PST specification](https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-pst/141923d5-15ab-4ef1-a524-6dce75aae546) (Microsoft)
 
 ---
